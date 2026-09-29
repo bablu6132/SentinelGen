@@ -2,6 +2,10 @@
 
 **A traceable GenAI pipeline for transforming one source into audience-ready content.**
 
+## Live Demo
+
+[Open SentinelGen](https://sentinelgen.onrender.com/)
+
 ## Problem Statement
 
 > **PS 26154 — Gen AI Platform for Automated Content Transformation**  
