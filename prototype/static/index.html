@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SentinelGen — Content Transformation MVP</title>
+<style>
+  :root {
+    --navy: #0b2545; --steel: #13315c; --teal: #00a896; --mint: #02c39a;
+    --ink: #1a1a1a; --grey: #6b7280; --bg: #f4f7f6;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: var(--ink); }
+  header { background: var(--navy); color: #fff; padding: 24px 32px; }
+  header h1 { margin: 0; font-size: 22px; }
+  header p { margin: 4px 0 0; color: #cadcfc; font-size: 13px; }
+  main { max-width: 1000px; margin: 24px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--steel); margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+  textarea, select, input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit; }
+  textarea { min-height: 160px; resize: vertical; }
+  .checkboxes { display: flex; gap: 16px; margin-top: 6px; }
+  .checkboxes label { text-transform: none; font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 6px; margin: 0; }
+  button { margin-top: 18px; background: var(--teal); color: #fff; border: none; padding: 12px 20px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; }
+  button:disabled { background: #9fb3d9; cursor: not-allowed; }
+  #results { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 14px; }
+  .result-card { background: #fff; border-radius: 10px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid var(--teal); }
+  .result-card h3 { margin: 0 0 8px; color: var(--navy); font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .result-card pre { white-space: pre-wrap; font-family: inherit; font-size: 14px; margin: 0 0 10px; }
+  .hash { font-size: 11px; color: var(--grey); word-break: break-all; }
+  .status { grid-column: 1 / -1; text-align: center; color: var(--grey); font-size: 14px; }
+  .upload-status { color: var(--grey); font-size: 12px; margin-top: 6px; }
+  .upload-status.error { background: none; padding: 0; }
+  .error { grid-column: 1 / -1; color: #b3261e; background: #fdecea; border-radius: 8px; padding: 12px 16px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SentinelGen</h1>
+  <p>PS 26154 · Gen AI Platform for Automated Content Transformation · Prototype</p>
+</header>
+
+<main>
+  <div class="card">
+    <label>Source content (article, report, advisory, document text)</label>
+    <label for="sourceFile">Or upload a file (.txt / .pdf)</label>
+    <input id="sourceFile" type="file" accept=".txt,.pdf" onchange="extractFile(event)" />
+    <div id="uploadStatus" class="upload-status" role="status" aria-live="polite"></div>
+    <textarea id="sourceText" placeholder="Paste your source text here..."></textarea>
+
+    <label>Output types</label>
+    <div class="checkboxes">
+      <label><input type="checkbox" value="linkedin" class="outputType" checked /> LinkedIn Post</label>
+      <label><input type="checkbox" value="twitter" class="outputType" /> Twitter / X Post</label>
+      <label><input type="checkbox" value="advisory" class="outputType" /> Advisory</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Audience</label>
+    <select id="audience">
+      <option>general public</option>
+      <option>senior executives</option>
+      <option>technical/developer audience</option>
+      <option>policy makers / government officials</option>
+      <option>field analysts</option>
+    </select>
+
+    <label>Tone</label>
+    <select id="tone">
+      <option>neutral / informative</option>
+      <option>professional / formal</option>
+      <option>urgent / alert</option>
+      <option>friendly / conversational</option>
+      <option>authoritative</option>
+    </select>
+
+    <label>Language</label>
+    <select id="language">
+      <option>English</option>
+      <option>Hindi</option>
+      <option>Telugu</option>
+    </select>
+
+    <label>Level of detail</label>
+    <select id="detail">
+      <option value="low">Low — one key idea only</option>
+      <option value="medium" selected>Medium — a few supporting points</option>
+      <option value="high">High — full context and nuance</option>
+    </select>
+
+    <button id="generateBtn" onclick="generate()">Generate</button>
+  </div>
+
+  <div id="results"></div>
+</main>
+
+<script>
+async function extractFile(event) {
+  const file = event.target.files[0];
+  const status = document.getElementById('uploadStatus');
+  const sourceText = document.getElementById('sourceText');
+  if (!file) return;
+
+  status.className = 'upload-status';
+  status.textContent = 'Extracting text...';
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/extract-text', { method: 'POST', body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `Extraction failed (${res.status})`);
+    sourceText.value = data.source_text;
+    status.textContent = 'Text extracted successfully.';
+  } catch (error) {
+    status.className = 'upload-status error';
+    status.textContent = error.message;
+  }
+}
+
+async function generate() {
+  const sourceText = document.getElementById('sourceText').value.trim();
+  const outputTypes = Array.from(document.querySelectorAll('.outputType:checked')).map(el => el.value);
+  const resultsEl = document.getElementById('results');
+  const btn = document.getElementById('generateBtn');
+
+  resultsEl.innerHTML = '';
+  if (!sourceText) {
+    resultsEl.innerHTML = '<div class="error">Please paste some source content first.</div>';
+    return;
+  }
+  if (outputTypes.length === 0) {
+    resultsEl.innerHTML = '<div class="error">Select at least one output type.</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  resultsEl.innerHTML = '<div class="status">Normalizing source and generating outputs — this calls the LLM live, give it a few seconds...</div>';
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source_text: sourceText,
+        output_types: outputTypes,
+        audience: document.getElementById('audience').value,
+        tone: document.getElementById('tone').value,
+        language: document.getElementById('language').value,
+        detail_level: document.getElementById('detail').value,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Request failed (${res.status})`);
+    }
+
+    const data = await res.json();
+    resultsEl.innerHTML = '';
+    const labels = {
+      linkedin: 'LinkedIn Post',
+      twitter: 'Twitter / X Post',
+      advisory: 'Advisory',
+    };
+    data.results.forEach(r => {
+      const div = document.createElement('div');
+      div.className = 'result-card';
+      div.innerHTML = `
+        <h3>${labels[r.output_type] || r.output_type}</h3>
+        <pre>${r.content.replace(/</g, '&lt;')}</pre>
+        <div class="hash">Provenance ID: ${r.provenance.id}<br/>Hash: ${r.provenance.combined_hash}</div>
+      `;
+      resultsEl.appendChild(div);
+    });
+  } catch (e) {
+    resultsEl.innerHTML = `<div class="error">${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate';
+  }
+}
+</script>
+
+</body>
+</html>

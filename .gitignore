@@ -1,0 +1,13 @@
+.venv/
+
+# Local secrets and runtime data
+.env
+**/.env
+**/provenance.db
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+
+# Local development files
+.vscode/
